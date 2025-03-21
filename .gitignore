@@ -2,5 +2,8 @@
 *.o
 
 # executable
-missingo
+missingno
 
+# images
+images/
+*.bmp
