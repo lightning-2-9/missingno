@@ -55,7 +55,8 @@ FileFormat detect_format(const FileBuffer *buf) {
 		{0xFF, 0xD8, 0xFF},
 		3,
 		{{0, 14000}},
-		1
+		1,
+		0 // compressed huffman stream, will likely break
 	};
 
 	// PNG: 8 byte signature, then chunk structure starts
@@ -64,7 +65,8 @@ FileFormat detect_format(const FileBuffer *buf) {
 		{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A},
 		8,
 		{{0, 8}},
-		1
+		1,
+		0 // deflate compressed, same problem as jpeg
 	};
 
 	// BMP: 54 byte header, then raw pixel data. safest format to glitch
@@ -73,7 +75,8 @@ FileFormat detect_format(const FileBuffer *buf) {
 		{0x42, 0x4D},	// 'BM' in ASCII
 		2,
 		{{0, 54}},
-		1
+		1,
+		1 // raw pixels after 54 byte header, corruption always survives
 	};
 
 	// WAV: header is always exactly 44 bytes
@@ -82,7 +85,8 @@ FileFormat detect_format(const FileBuffer *buf) {
 		{0x52, 0x49, 0x46, 0x46},	// 'RIFF'
 		4,
 		{{0, 44}},
-		1
+		1,
+		1 // raw audio samples after 44 byte header, corruption always survives
 	};
 
 	// MP3: either starts with ID3 tag or with sync bytes FF FB
@@ -91,7 +95,8 @@ FileFormat detect_format(const FileBuffer *buf) {
 		{0x49, 0x44, 0x33},   // 'ID3'
 		3,
 		{{0, 10}},
-		1
+		1,
+		0 // compressed frames, light corruption might work but no guarantees
 	};
 
 	static const FileFormat *formats[] = {&jpeg, &png, &bmp, &wav, &mp3};
@@ -106,7 +111,7 @@ FileFormat detect_format(const FileBuffer *buf) {
 	}
 
 	// unknown format: no safe ranges, corrupt everything
-	static const FileFormat unknown = {"unknown", {0}, 0, {{0, 0}}, 0};
+	static const FileFormat unknown = {"unknown", {0}, 0, {{0, 0}}, 0, 0};
 	return unknown;
 }
 

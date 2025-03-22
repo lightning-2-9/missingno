@@ -22,6 +22,7 @@ typedef struct {
 	size_t magic_len; // how many of those bytes to check
 	SafeRange ranges[8]; // byte ranges to never corrupt
 	int range_count; // how many ranges we actually have
+	int supported; // 1 if we can glitch this reliably, 0 if we're just guessing
 } FileFormat;
 
 // read the file into memory

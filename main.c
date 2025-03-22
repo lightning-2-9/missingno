@@ -15,6 +15,19 @@ int main(int argc, char *argv[]) {
 	FileFormat fmt = detect_format(&buf);
 	printf("detected format: %s\n", fmt.name);
 
+	// warn the user if we can't guarantee the file will survive
+	if(!fmt.supported) {
+		printf("warning: %s is compressed and may not open after corruption.\n", fmt.name);
+		printf("results are unpredictable. proceed? (y/n): ");
+		char response;
+		scanf("%c", &response);
+		if (response != 'y' && response != 'Y') {
+			printf("aborted.\n");
+			free_buffer(&buf);
+			return 0;
+		}
+	}
+
 	if(!write_file(argv[2], &buf)) return 1;
 	printf("wrote %zu bytes to %s\n", buf.size, argv[2]);
 
