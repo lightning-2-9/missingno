@@ -7,3 +7,5 @@ missingno
 # images
 images/
 *.bmp
+*.jpeg
+*.png
