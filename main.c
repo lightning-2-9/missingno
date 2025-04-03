@@ -1,9 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "format_handler.h"
+#include "missingno.h"
 
 int main(int argc, char *argv[]) {
-	if (argc < 3) {
-		printf("usage: missingno <input> <output>\n");
+	if (argc < 4) {
+		printf("usage: missingno <input> <intensity> <output>\n");
 		return 1;
 	}
 
@@ -28,8 +31,17 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	if(!write_file(argv[2], &buf)) return 1;
-	printf("wrote %zu bytes to %s\n", buf.size, argv[2]);
+	GlitchConfig cfg = {
+		.type	   = GLITCH_BITFLIP,
+		.intensity = atof(argv[2]),
+		.spacing   = 0,
+		.verbose   = 0
+	};
+
+	glitch_file(&buf, &fmt, &cfg);
+
+	if(!write_file(argv[3], &buf)) return 1;
+	printf("wrote %zu bytes to %s\n", buf.size, argv[3]);
 
 	free_buffer(&buf);	
 

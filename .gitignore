@@ -9,3 +9,8 @@ images/
 *.bmp
 *.jpeg
 *.png
+
+# audio
+audio/
+*.wav
+*.mp3
