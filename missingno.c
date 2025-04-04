@@ -7,7 +7,6 @@
 // least destructive, only changes the value by a small amount
 static void bit_flip(FileBuffer *buf, size_t pos) {
 	int bit = rand() % 8;
-	if (/* verbose check */ 0) printf("bitflip @ %zu | %02x -> ", pos, buf->data[pos]);
 	buf->data[pos] ^= (1 << bit);
 }
 
@@ -64,6 +63,38 @@ static void byte_noise(FileBuffer *buf, size_t pos) {
 	buf->data[pos] = rand() % 256;
 }
 
+// returns the name of a glitch type as a string for verbose printing
+static const char *type_name(GlitchType type) {
+	switch (type) {
+		case GLITCH_BITFLIP: return "bitflip";
+		case GLITCH_SWAP:    return "swap";
+		case GLITCH_SHIFT:   return "shift";
+		case GLITCH_REVERSE: return "reverse";
+		case GLITCH_NOISE:   return "noise";
+		default:             return "unknown";
+	}
+}
+
+// applies a single glitch operation at the given position and logs it if verbose
+static void apply_glitch(FileBuffer *buf, const FileFormat *fmt, 
+						  GlitchType type, size_t pos, int verbose) {
+	unsigned char before = buf->data[pos];
+
+	switch (type) {
+		case GLITCH_BITFLIP: bit_flip(buf, pos);        break;
+		case GLITCH_SWAP:    byte_swap(buf, pos, fmt);  break;
+		case GLITCH_SHIFT:   byte_shift(buf, pos);      break;
+		case GLITCH_REVERSE: byte_reverse(buf, pos);    break;
+		case GLITCH_NOISE:   byte_noise(buf, pos);      break;
+		case GLITCH_RANDOM:  break;
+	}
+
+	if (verbose) {
+		printf("%s @ byte %zu | %02x -> %02x\n",
+			type_name(type), pos, before, buf->data[pos]);
+	}
+}
+
 void glitch_file(FileBuffer *buf, const FileFormat *fmt, const GlitchConfig *cfg) {
 	srand(time(NULL));
 
@@ -86,23 +117,7 @@ void glitch_file(FileBuffer *buf, const FileFormat *fmt, const GlitchConfig *cfg
 			type = (GlitchType)(rand() % 5);  // pick any of the 5 real types
 		}
 
-		if (cfg->verbose) printf("%s @ byte %zu | was %02x",
-			type == GLITCH_BITFLIP ? "bitflip" :
-			type == GLITCH_SWAP    ? "swap"    :
-			type == GLITCH_SHIFT   ? "shift"   :
-			type == GLITCH_REVERSE ? "reverse" : "noise",
-			pos, buf->data[pos]);
-
-		switch (type) {
-			case GLITCH_BITFLIP: bit_flip(buf, pos);		   break;
-			case GLITCH_SWAP:	 byte_swap(buf, pos, fmt);	   break;
-			case GLITCH_SHIFT:	 byte_shift(buf, pos);		   break;
-			case GLITCH_REVERSE: byte_reverse(buf, pos);	   break;
-			case GLITCH_NOISE:	 byte_noise(buf, pos);		   break;
-			case GLITCH_RANDOM:  break;  // never reaches here
-		}
-
-		if (cfg->verbose) printf(" -> now %02x\n", buf->data[pos]);
+		apply_glitch(buf, fmt, type, pos, cfg->verbose);
 		corrupted++;
 	}
 
