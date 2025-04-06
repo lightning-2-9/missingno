@@ -17,6 +17,7 @@ typedef struct {
 	GlitchType type;
 	float intensity; // 0.00 to 1.00, controls how many bytes get hit
 	int spacing;     // minimum bytes between corruptions (0 should be pure chaos)
+	int chunk_size;  // how many consecutive bytes to corrupt per hit (0 = single byte, classic mode)
 	int verbose;     // print every corruption we make
 } GlitchConfig;
 

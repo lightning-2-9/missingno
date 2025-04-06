@@ -104,7 +104,14 @@ void glitch_file(FileBuffer *buf, const FileFormat *fmt, const GlitchConfig *cfg
 
 	if (cfg->verbose) printf("planning %zu corruptions across %zu bytes\n", num_ops, buf->size);
 
-	for (size_t i = 0; i < num_ops; i++) {
+	// if chunk_size is set we treat num_ops as number of chunks, not individual bytes
+	// so we divide down, otherwise at 0.05 intensity you'd corrupt 5% * chunk_size
+	// which gets out of hand fast
+	size_t num_chunks = cfg->chunk_size > 0 
+        ? num_ops / cfg->chunk_size 
+        : num_ops;
+
+	for (size_t i = 0; i < num_chunks; i++) {
 		// pick a random position
 		size_t pos = rand() % buf->size;
 
@@ -117,9 +124,26 @@ void glitch_file(FileBuffer *buf, const FileFormat *fmt, const GlitchConfig *cfg
 			type = (GlitchType)(rand() % 5);  // pick any of the 5 real types
 		}
 
-		apply_glitch(buf, fmt, type, pos, cfg->verbose);
-		corrupted++;
-	}
+		if (cfg->chunk_size <= 0) {
+			// classic mode: single byte hit
+			apply_glitch(buf, fmt, type, pos, cfg->verbose);
+			corrupted++;
+		} else {
+			// chunk mode: corrupt consecutive bytes from this position
+			// each byte in the chunk gets the same glitch type applied
+			if (cfg->verbose) printf("chunk @ byte %zu | size %d\n", pos, cfg->chunk_size);
 
+			for (int j = 0; j < cfg->chunk_size; j++) {
+				size_t cur = pos + j;
+
+				// stop the chunk if we hit the end of the file or a protected range
+				if (cur >= buf->size) break;
+				if (!is_safe_position(cur, fmt)) break;
+
+				apply_glitch(buf, fmt, type, cur, 0);  // verbose handled at chunk level
+				corrupted++;
+			}
+		}
+	}
 	printf("done... corrupted %zu bytes\n", corrupted);
 }

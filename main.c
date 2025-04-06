@@ -21,22 +21,24 @@ int main(int argc, char *argv[]) {
 	float intensity         = -1.0f;
 
 	GlitchConfig cfg = {
-		.type	   = GLITCH_BITFLIP,
-		.intensity = 0.0f,
-		.spacing   = 0,
-		.verbose   = 0
+		.type	    = GLITCH_BITFLIP,
+		.intensity  = 0.0f,
+		.spacing    = 0,
+		.chunk_size = 0,
+		.verbose    = 0
 	};
 
 	int opt;
-	while ((opt = getopt(argc, argv, "i:o:a:t:s:vh")) != -1) {
+	while ((opt = getopt(argc, argv, "i:o:a:t:s:c:vh")) != -1) {
 		switch (opt) {
-			case 'i': input_path  = optarg;             break;
-			case 'o': output_path = optarg;             break;
-			case 'a': intensity   = atof(optarg);       break;
-			case 't': cfg.type    = parse_type(optarg); break;
-			case 's': cfg.spacing = atoi(optarg);       break;
-			case 'v': cfg.verbose = 1;                  break;
-			case 'h': print_usage(argv);                return 0;
+			case 'i': input_path     = optarg;             break;
+			case 'o': output_path    = optarg;             break;
+			case 'a': intensity      = atof(optarg);       break;
+			case 't': cfg.type       = parse_type(optarg); break;
+			case 's': cfg.spacing    = atoi(optarg);       break;
+			case 'c': cfg.chunk_size = atoi(optarg);       break;
+			case 'v': cfg.verbose    = 1;                  break;
+			case 'h': print_usage(argv);                   return 0;
 			default:
 				fprintf(stderr, "unknown flag, use -h for help\n");
 				return 1;
@@ -101,6 +103,7 @@ static void print_usage(char *argv[]) {
 	printf("  -a <amount>   intensity 0.00 to 1.00\n");
 	printf("  -t <type>     glitch type: bitflip, swap, shift, reverse, noise, random\n");
 	printf("  -s <spacing>  min bytes between corruptions (0 = chaos mode)\n");
+	printf("  -c <size>     bytes per chunk (0 = classic scatter mode)\n");
 	printf("  -v            verbose - print every corruption\n");
 	printf("  -h            show this help\n\n");
 }
