@@ -2,16 +2,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <libgen.h>
 #include "format_handler.h"
 #include "missingno.h"
 
-static void print_usage(char *argv[]);
+static void print_usage(const char *program);
 static GlitchType parse_type(const char *str);
 
 int main(int argc, char *argv[]) {
+	const char *program = basename(argv[0]);
 	if (argc < 2) {
-		printf("%s: missing required arguments (-i input, -o output)\n", argv[0]);
-		printf("Try '%s -h' for more information.\n", argv[0]);
+		printf("%s: missing required arguments (-i input, -o output)\n", program);
+		printf("Try '%s -h' for more information.\n", program);
 		return 1;
 	}
 
@@ -39,7 +41,7 @@ int main(int argc, char *argv[]) {
 			case 's': cfg.spacing    = atoi(optarg);                  break;
 			case 'c': cfg.chunk_size = atoi(optarg);                  break;
 			case 'v': cfg.verbose    = 1;                             break;
-			case 'h': print_usage(argv);                              return 0;
+			case 'h': print_usage(program);                           return 0;
 			default:
 				fprintf(stderr, "unknown flag, use -h for help\n");
 				return 1;
@@ -96,8 +98,8 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-static void print_usage(char *argv[]) {
-	printf("usage: %s -i <input> -a <intensity> [options] -o <output>\n\n", argv[0]);
+static void print_usage(const char *program) {
+	printf("usage: %s -i <input> -a <intensity> [options] -o <output>\n\n", program);
 	printf("options:\n");
 	printf("  -i <file>     input file\n");
 	printf("  -o <file>     output file\n");

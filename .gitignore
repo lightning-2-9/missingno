@@ -2,7 +2,7 @@
 *.o
 
 # executable
-missingno
+missingno*
 
 # images
 images/
