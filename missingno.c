@@ -98,52 +98,90 @@ static void apply_glitch(FileBuffer *buf, const FileFormat *fmt,
 void glitch_file(FileBuffer *buf, const FileFormat *fmt, const GlitchConfig *cfg) {
 	srand(time(NULL));
 
-	// figure out how many corruptions to make based on intensity
-	size_t num_ops = (size_t)(buf->size * cfg->intensity);
 	size_t corrupted = 0;
 
-	if (cfg->verbose) printf("planning %zu corruptions across %zu bytes\n", num_ops, buf->size);
+	// spacing mode: march through the file linearly, hit every (spacing) bytes
+	// this creates rhythmic repeating patterns instead of random scatter
+	// intensity is ignored here. The spacing gap itself controls how much gets hit
+	if (cfg->spacing > 0) {
+		if (cfg->verbose) printf("spacing mode: hitting every %d bytes\n", cfg->spacing);
 
-	// if chunk_size is set we treat num_ops as number of chunks, not individual bytes
-	// so we divide down, otherwise at 0.05 intensity you'd corrupt 5% * chunk_size
-	// which gets out of hand fast
-	size_t num_chunks = cfg->chunk_size > 0 
-        ? num_ops / cfg->chunk_size 
-        : num_ops;
+		// start right after the header, never touch protected ranges
+		size_t pos = fmt->ranges[0].end;
 
-	for (size_t i = 0; i < num_chunks; i++) {
-		// pick a random position
-		size_t pos = rand() % buf->size;
+		while (pos < buf->size) {
+			if (is_safe_position(pos, fmt)) {
+				GlitchType type = cfg->type;
+				if (type == GLITCH_RANDOM) type = (GlitchType)(rand() % 5);
 
-		// skip if this byte is inside a protected header range
-		if (!is_safe_position(pos, fmt)) continue;
+				if (cfg->chunk_size > 0) {
+					// spacing + chunk together: corrupt a run of bytes,
+					// then skip spacing bytes, then corrupt another run
+					// great for rhythmic audio artifacts and image banding
+					if (cfg->verbose) printf("chunk @ byte %zu | size %d\n", pos, cfg->chunk_size);
 
-		// figure out which glitch type to use this iteration
-		GlitchType type = cfg->type;
-		if (type == GLITCH_RANDOM) {
-			type = (GlitchType)(rand() % 5);  // pick any of the 5 real types
+					for (int j = 0; j < cfg->chunk_size; j++) {
+						size_t cur = pos + j;
+						if (cur >= buf->size) break;
+						if (!is_safe_position(cur, fmt)) break;
+						apply_glitch(buf, fmt, type, cur, 0);
+						corrupted++;
+					}
+
+					// jump past the chunk we just corrupted plus the spacing gap
+					pos += cfg->chunk_size + cfg->spacing;
+				} else {
+					// spacing only: single byte hit every N bytes
+					apply_glitch(buf, fmt, type, pos, cfg->verbose);
+					corrupted++;
+					pos += cfg->spacing;
+				}
+			} else {
+				// landed in a protected range, nudge forward one byte and try again
+				pos++;
+			}
 		}
 
-		if (cfg->chunk_size <= 0) {
-			// classic mode: single byte hit
-			apply_glitch(buf, fmt, type, pos, cfg->verbose);
-			corrupted++;
-		} else {
-			// chunk mode: corrupt consecutive bytes from this position
-			// each byte in the chunk gets the same glitch type applied
-			if (cfg->verbose) printf("chunk @ byte %zu | size %d\n", pos, cfg->chunk_size);
+	} else {
+		// classic random scatter mode: pick random positions based on intensity
+		// if chunk_size is set we treat num_ops as number of chunks, not individual bytes
+		// so we divide down, otherwise at 0.05 intensity you'd corrupt 5% * chunk_size
+		// which gets out of hand fast
 
-			for (int j = 0; j < cfg->chunk_size; j++) {
-				size_t cur = pos + j;
+		// figure out how many corruptions to make based on intensity
+		size_t num_ops = (size_t)(buf->size * cfg->intensity);
+		size_t num_chunks = cfg->chunk_size > 0
+			? num_ops / cfg->chunk_size
+			: num_ops;
 
-				// stop the chunk if we hit the end of the file or a protected range
-				if (cur >= buf->size) break;
-				if (!is_safe_position(cur, fmt)) break;
+		if (cfg->verbose) printf("scatter mode: planning %zu operations\n", num_chunks);
 
-				apply_glitch(buf, fmt, type, cur, 0);  // verbose handled at chunk level
+		for (size_t i = 0; i < num_chunks; i++) {
+			size_t pos = rand() % buf->size;
+			if (!is_safe_position(pos, fmt)) continue;
+
+			GlitchType type = cfg->type;
+			if (type == GLITCH_RANDOM) type = (GlitchType)(rand() % 5);
+
+			if (cfg->chunk_size > 0) {
+				// chunk mode: corrupt consecutive bytes from this position
+				// each byte in the chunk gets the same glitch type applied
+				if (cfg->verbose) printf("chunk @ byte %zu | size %d\n", pos, cfg->chunk_size);
+
+				for (int j = 0; j < cfg->chunk_size; j++) {
+					size_t cur = pos + j;
+					if (cur >= buf->size) break;
+					if (!is_safe_position(cur, fmt)) break;
+					apply_glitch(buf, fmt, type, cur, 0);  // verbose handled at chunk level
+					corrupted++;
+				}
+			} else {
+				// classic mode: single byte hit
+				apply_glitch(buf, fmt, type, pos, cfg->verbose);
 				corrupted++;
 			}
 		}
 	}
+
 	printf("done... corrupted %zu bytes\n", corrupted);
 }

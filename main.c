@@ -15,37 +15,38 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	// these 3 are required, everything else has a default
+	// these 2 are required, everything else has a default
 	const char *input_path	= NULL;
 	const char *output_path = NULL;
-	float intensity         = -1.0f;
 
 	GlitchConfig cfg = {
 		.type	    = GLITCH_BITFLIP,
-		.intensity  = 0.0f,
+		.intensity  = 0.05f,
 		.spacing    = 0,
 		.chunk_size = 0,
 		.verbose    = 0
 	};
 
+	int intensity_set = 0;
+
 	int opt;
 	while ((opt = getopt(argc, argv, "i:o:a:t:s:c:vh")) != -1) {
 		switch (opt) {
-			case 'i': input_path     = optarg;             break;
-			case 'o': output_path    = optarg;             break;
-			case 'a': intensity      = atof(optarg);       break;
-			case 't': cfg.type       = parse_type(optarg); break;
-			case 's': cfg.spacing    = atoi(optarg);       break;
-			case 'c': cfg.chunk_size = atoi(optarg);       break;
-			case 'v': cfg.verbose    = 1;                  break;
-			case 'h': print_usage(argv);                   return 0;
+			case 'i': input_path     = optarg;                        break;
+			case 'o': output_path    = optarg;                        break;
+			case 'a': cfg.intensity  = atof(optarg); intensity_set=1; break;
+			case 't': cfg.type       = parse_type(optarg);            break;
+			case 's': cfg.spacing    = atoi(optarg);                  break;
+			case 'c': cfg.chunk_size = atoi(optarg);                  break;
+			case 'v': cfg.verbose    = 1;                             break;
+			case 'h': print_usage(argv);                              return 0;
 			default:
 				fprintf(stderr, "unknown flag, use -h for help\n");
 				return 1;
 		}
 	}
 
-	// make sure the 3 required args were actually provided
+	// make sure the 2 required args were actually provided
 	if (!input_path) {
 		fprintf(stderr, "error: no input file specified (-i)\n");
 		return 1;
@@ -54,16 +55,16 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "error: no output file specified (-o)\n");
 		return 1;
 	}
-	if (intensity < 0.0f) {
-		fprintf(stderr, "error: no intensity specified (-a)\n");
-		return 1;
+
+	// intensity is ignored in spacing mode since the gap controls density instead
+	if (cfg.spacing > 0 && intensity_set) {
+		printf("note: -a is ignored when -s is set\n");
 	}
-	if (intensity > 1.0f) {
+
+	if (cfg.intensity < 0.0f || cfg.intensity > 1.0f) {
 		fprintf(stderr, "error: intensity must be between 0.0 and 1.0\n");
 		return 1;
 	}
-
-	cfg.intensity = intensity;
 
 	FileBuffer buf;
 	if(!read_file(input_path, &buf)) return 1;
@@ -100,7 +101,7 @@ static void print_usage(char *argv[]) {
 	printf("options:\n");
 	printf("  -i <file>     input file\n");
 	printf("  -o <file>     output file\n");
-	printf("  -a <amount>   intensity 0.00 to 1.00\n");
+	printf("  -a <amount>   intensity 0.00 to 1.00 (default: 0.05, ignored when -s is set)\n");
 	printf("  -t <type>     glitch type: bitflip, swap, shift, reverse, noise, random\n");
 	printf("  -s <spacing>  min bytes between corruptions (0 = chaos mode)\n");
 	printf("  -c <size>     bytes per chunk (0 = classic scatter mode)\n");
