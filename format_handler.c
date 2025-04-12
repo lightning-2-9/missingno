@@ -1,6 +1,7 @@
 #include "format_handler.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 int read_file(const char *path, FileBuffer *buf) {
@@ -46,6 +47,38 @@ void free_buffer(FileBuffer *buf) {
 	buf->size = 0;
 }
 
+// WAV files can have extra metadata chunks before the actual audio data
+// so we scan forward looking for the data marker instead of assuming 44 bytes
+static size_t find_wav_data_offset(const FileBuffer *buf) {
+	// start at byte 12, right after the RIFF/WAVE header
+	size_t i = 12;
+
+	while (i + 8 < buf->size) {
+		// each chunk starts with a 4 byte id and a 4 byte size
+		// if we find data that's where the audio starts
+		if (buf->data[i]	 == 'd' &&
+			buf->data[i + 1] == 'a' &&
+			buf->data[i + 2] == 't' &&
+			buf->data[i + 3] == 'a') {
+			// skip past the data id and the 4 byte size field
+			return i + 8;
+		}
+
+		// not data yet, so skip this chunk entirely
+		// chunk size is stored as a little-endian 32 bit int at bytes i+4 through i+7
+		uint32_t chunk_size = (uint32_t)buf->data[i + 4]
+							| ((uint32_t)buf->data[i + 5] << 8)
+							| ((uint32_t)buf->data[i + 6] << 16)
+							| ((uint32_t)buf->data[i + 7] << 24);
+
+		i += 8 + chunk_size;
+	}
+
+	// couldn't find it, fall back to 44
+	fprintf(stderr, "warning: couldn't find WAV data chunk, defaulting to 44 byte skip\n");
+	return 44;
+}
+
 FileFormat detect_format(const FileBuffer *buf) {
 	// JPEG: we learned the hard way this needs a big safe zone
 	// the EXIF block can stretch way further than you'd expect
@@ -79,15 +112,21 @@ FileFormat detect_format(const FileBuffer *buf) {
 		1 // raw pixels after 54 byte header, corruption always survives
 	};
 
-	// WAV: header is always exactly 44 bytes
-	static const FileFormat wav = {
-		"wav",
-		{0x52, 0x49, 0x46, 0x46},	// 'RIFF'
-		4,
-		{{0, 44}},
-		1,
-		1 // raw audio samples after 44 byte header, corruption always survives
-	};
+	 // WAV: header can be more than 44 bytes in some cases
+	static const unsigned char wav_magic[] = {0x52, 0x49, 0x46, 0x46};
+	if (buf->size >= 4 && memcmp(buf->data, wav_magic, 4) == 0) {
+		size_t data_offset = find_wav_data_offset(buf);
+		printf("WAV data chunk found at byte %zu\n", data_offset);
+		FileFormat wav = {
+			"wav",
+			{0x52, 0x49, 0x46, 0x46},	// 'RIFF'
+			4,
+			{{0, data_offset}},
+			1,
+			1 // raw audio samples after 44 byte header, corruption always survives
+		};
+		return wav;
+	}
 
 	// MP3: either starts with ID3 tag or with sync bytes FF FB
 	static const FileFormat mp3 = {
@@ -99,8 +138,9 @@ FileFormat detect_format(const FileBuffer *buf) {
 		0 // compressed frames, light corruption might work but no guarantees
 	};
 
-	static const FileFormat *formats[] = {&jpeg, &png, &bmp, &wav, &mp3};
-	static const int format_count = 5;
+	// check for format using magic bytes
+	static const FileFormat *formats[] = {&jpeg, &png, &bmp, &mp3};
+	static const int format_count = 4;
 
 	for (int i = 0; i < format_count; i++) {
 		const FileFormat *fmt = formats[i];
