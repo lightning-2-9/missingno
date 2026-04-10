@@ -99,15 +99,15 @@ int main(int argc, char *argv[]) {
 }
 
 static void print_usage(const char *program) {
-	printf("usage: %s -i <input> -a <intensity> [options] -o <output>\n\n", program);
+	printf("usage: %s -i <input> [options] -o <output>\n\n", program);
 	printf("options:\n");
 	printf("  -i <file>     input file\n");
 	printf("  -o <file>     output file\n");
 	printf("  -a <amount>   intensity 0.00 to 1.00 (default: 0.05, ignored when -s is set)\n");
-	printf("  -t <type>     glitch type: bitflip, swap, shift, reverse, noise, random\n");
-	printf("  -s <spacing>  min bytes between corruptions (0 = chaos mode)\n");
-	printf("  -c <size>     bytes per chunk (0 = classic scatter mode)\n");
-	printf("  -v            verbose - print every corruption\n");
+	printf("  -t <type>     glitch type: bitflip (default), swap, shift, reverse, noise, random\n");
+	printf("  -s <spacing>  spacing mode: corrupt every N bytes linearly through the file\n");
+	printf("  -c <size>     chunk_size: corrupt N consecutive bytes per hit instead of one\n");
+	printf("  -v            verbose\n");
 	printf("  -h            show this help\n\n");
 }
 
